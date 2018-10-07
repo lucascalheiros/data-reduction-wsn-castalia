@@ -18,26 +18,19 @@ package node.application.valueReporting;
 simple ValueReporting like node.application.iApplication {
  parameters:
  	string applicationID = default ("valueReporting");
-	string samplingAlgorithm = default ("");
-	string evaluation = default("");
-
 	bool collectTraceInfo = default (true);
 	int priority = default (1);
 	int packetHeaderOverhead = default (8);	// in bytes
 	int constantDataPayload = default (12);	// in bytes
-	int maxSampleInterval = default (2500);// in msec
-	int minSampleInterval = default (250);	// in msec
+	int maxSampleInterval = default (60000);// in msec
+	int minSampleInterval = default (1000);	// in msec
+	bool isSink = default (false);
+
+	string samplingAlgorithm = default ("");
+	string evaluation = default("");
 	int bufferSize = default (1000);
 	int contamination = default(0);
 	int sampleRate = default (25); //  between [1,100] %
-	double sinkSpeed = default(2); // (m/s) temporary solution
-
-	bool isSink = default (false);
-	bool displaySampleSensing = default (false);
-
-	int seed = default (1);
-	
-
  gates:
  	output toCommunicationModule;
 	output toSensorDeviceManager;

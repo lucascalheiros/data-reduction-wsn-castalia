@@ -20,7 +20,6 @@ struct ValueReportData {
 	unsigned short nodeID;	//the ID of the Node
 	double locX;			// x-coordinate of the node
 	double locY;			// y-coordinate of the node
-	string command;
 } 
 
 packet ValueReportingDataPacket extends ApplicationPacket {

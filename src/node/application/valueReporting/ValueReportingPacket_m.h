@@ -28,14 +28,13 @@ struct ValueReportData
     unsigned short nodeID;
     double locX;
     double locY;
-    opp_string command;
 };
 
 void doPacking(cCommBuffer *b, ValueReportData& a);
 void doUnpacking(cCommBuffer *b, ValueReportData& a);
 
 /**
- * Class generated from <tt>src/node/application/valueReporting/ValueReportingPacket.msg:26</tt> by nedtool.
+ * Class generated from <tt>src/node/application/valueReporting/ValueReportingPacket.msg:25</tt> by nedtool.
  * <pre>
  * packet ValueReportingDataPacket extends ApplicationPacket
  * {

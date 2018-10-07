@@ -43,10 +43,10 @@ void ValueReporting::timerFiredCallback(int index)
 	if (isSink) {
 		if (simTime()>timer) { 
 			timer = simTime().dbl() + 1;
-			ValueReportingDataPacket *packet2Net =
-	    new ValueReportingDataPacket("Value reporting pck", APPLICATION_PACKET);
 			actualNode = actualNode%20+1; 
-			trace() <<"sendToMe node " << actualNode;
+			trace() << "Send me " << actualNode;
+			ValueReportingDataPacket *packet2Net =
+	    new ValueReportingDataPacket("Send me ", APPLICATION_PACKET);
 			string nodeIdStr = to_string(actualNode);
 			const char * nodeIdChar = nodeIdStr.c_str();
 			toNetworkLayer(packet2Net, nodeIdChar);
@@ -56,7 +56,7 @@ void ValueReporting::timerFiredCallback(int index)
 	switch (index) {
 		case REQUEST_SAMPLE:{
 			requestSensorReading();
-			setTimer(REQUEST_SAMPLE, maxSampleInterval);
+			setTimer(REQUEST_SAMPLE, minSampleInterval);
 			break;
 		}
 	}
@@ -108,13 +108,21 @@ void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
 				toSend = bufferLength;
 
 			for(int i=0; i<toSend; i++) {
-				ValueReportingDataPacket* packet2Net = createDataPkt(nodeBuffer.front(), currSentSampleSN); //sensVal nodeBuffer[0]
+				ValueReportData tmpData;
+				tmpData.nodeID = (unsigned short)self;
+				tmpData.locX = mobilityModule->getLocation().x;
+				tmpData.locY = mobilityModule->getLocation().y;
+				ValueReportingDataPacket *packet2Net =
+					new ValueReportingDataPacket("Sending data to sink", APPLICATION_PACKET);
+				packet2Net->setExtraData(tmpData);
+				packet2Net->setData(nodeBuffer.front());
+				packet2Net->setSequenceNumber(currSentSampleSN);
 				nodeBuffer.pop();
 				currSentSampleSN++;
-				toNetworkLayer(packet2Net, SINK_NETWORK_ADDRESS); // SENDING DATA HERE: ToNetworkLayer()
+				toNetworkLayer(packet2Net, SINK_NETWORK_ADDRESS);
 			}
 
-			trace() << "[DONE!] " << toSend << " samples was sent successfully. / " << nodeBuffer.size() << " samples pending." << endl;
+			trace() << toSend << "/"<< nodeBuffer.size()<< " -->  (samples sent)/(samples in buffer)" << endl;
 		}
 	}
 }
@@ -131,6 +139,7 @@ void ValueReporting::handleSensorReading(SensorReadingMessage * rcvReading)
 	}
 }
 
+//TODO
 void ValueReporting::sampleWith(string name) { // Add here a call for new sampling algorithms
 
 	if(name=="DropRandom") {
@@ -153,49 +162,6 @@ void ValueReporting::sampleWith(string name) { // Add here a call for new sampli
 
 	trace() << "Sampling algorithm: " << name;
 	updateFreeBuffer();
-}
-
-/********************************* COMMUNICATION *************************************************************/
-
-
-
-
-
-ValueReportingDataPacket* ValueReporting::createControlPkt(string command)
-{
-	char* comm = strdup(command.c_str()); // coercing to the accepted type: char*
-	int sensValue = 0;
-
-	ValueReportData tmpData;
-	tmpData.nodeID = (unsigned short)self;
-	tmpData.locX = mobilityModule->getLocation().x;
-	tmpData.locY = mobilityModule->getLocation().y;
-	tmpData.command = comm;
-
-	ValueReportingDataPacket *packet2Net =
-	    new ValueReportingDataPacket(comm, APPLICATION_PACKET);
-
-	packet2Net->setExtraData(tmpData);
-	packet2Net->setData(sensValue);
-
-	return(packet2Net);
-}
-
-ValueReportingDataPacket* ValueReporting::createDataPkt(double sensValue, int seqNumber)
-{
-	ValueReportData tmpData;
-	tmpData.nodeID = (unsigned short)self;
-	tmpData.locX = mobilityModule->getLocation().x;
-	tmpData.locY = mobilityModule->getLocation().y;
-	tmpData.command = "data_pkt";
-
-	ValueReportingDataPacket *packet2Net =
-	    new ValueReportingDataPacket("data_pkt", APPLICATION_PACKET);
-	packet2Net->setExtraData(tmpData);
-	packet2Net->setData(sensValue);
-	packet2Net->setSequenceNumber(currSentSampleSN);
-
-	return(packet2Net);
 }
 
 void ValueReporting::updateFreeBuffer()

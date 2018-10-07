@@ -201,12 +201,8 @@ void VirtualApplication::toNetworkLayer(cPacket * pkt, const char *dst)
 	if (size == 0)
 		size = constantDataPayload;
 	if (packetHeaderOverhead > 0) size += packetHeaderOverhead;
-	
-	string appType(appPkt->getName());
-
-	if(false) // Avoid spam of pkts traffic in trace-file, to supress only broadcasts change to: if(appType != "broadcast") 
-		trace() << "Sending [" << appPkt->getName() << "] of size " << size << " bytes to communication layer";
-
+	trace() << "Sending [" << appPkt->getName() << "] of size " <<
+		size << " bytes to communication layer";
 	appPkt->setByteLength(size);
 	send(appPkt, "toCommunicationModule");
 }

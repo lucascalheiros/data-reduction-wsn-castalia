@@ -58,7 +58,6 @@ ValueReportData::ValueReportData()
     nodeID = 0;
     locX = 0;
     locY = 0;
-    command = 0;
 }
 
 void doPacking(cCommBuffer *b, ValueReportData& a)
@@ -66,7 +65,6 @@ void doPacking(cCommBuffer *b, ValueReportData& a)
     doPacking(b,a.nodeID);
     doPacking(b,a.locX);
     doPacking(b,a.locY);
-    doPacking(b,a.command);
 }
 
 void doUnpacking(cCommBuffer *b, ValueReportData& a)
@@ -74,7 +72,6 @@ void doUnpacking(cCommBuffer *b, ValueReportData& a)
     doUnpacking(b,a.nodeID);
     doUnpacking(b,a.locX);
     doUnpacking(b,a.locY);
-    doUnpacking(b,a.command);
 }
 
 class ValueReportDataDescriptor : public cClassDescriptor
@@ -124,7 +121,7 @@ const char *ValueReportDataDescriptor::getProperty(const char *propertyname) con
 int ValueReportDataDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 4+basedesc->getFieldCount(object) : 4;
+    return basedesc ? 3+basedesc->getFieldCount(object) : 3;
 }
 
 unsigned int ValueReportDataDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -139,9 +136,8 @@ unsigned int ValueReportDataDescriptor::getFieldTypeFlags(void *object, int fiel
         FD_ISEDITABLE,
         FD_ISEDITABLE,
         FD_ISEDITABLE,
-        FD_ISEDITABLE,
     };
-    return (field>=0 && field<4) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<3) ? fieldTypeFlags[field] : 0;
 }
 
 const char *ValueReportDataDescriptor::getFieldName(void *object, int field) const
@@ -156,9 +152,8 @@ const char *ValueReportDataDescriptor::getFieldName(void *object, int field) con
         "nodeID",
         "locX",
         "locY",
-        "command",
     };
-    return (field>=0 && field<4) ? fieldNames[field] : NULL;
+    return (field>=0 && field<3) ? fieldNames[field] : NULL;
 }
 
 int ValueReportDataDescriptor::findField(void *object, const char *fieldName) const
@@ -168,7 +163,6 @@ int ValueReportDataDescriptor::findField(void *object, const char *fieldName) co
     if (fieldName[0]=='n' && strcmp(fieldName, "nodeID")==0) return base+0;
     if (fieldName[0]=='l' && strcmp(fieldName, "locX")==0) return base+1;
     if (fieldName[0]=='l' && strcmp(fieldName, "locY")==0) return base+2;
-    if (fieldName[0]=='c' && strcmp(fieldName, "command")==0) return base+3;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -184,9 +178,8 @@ const char *ValueReportDataDescriptor::getFieldTypeString(void *object, int fiel
         "unsigned short",
         "double",
         "double",
-        "string",
     };
-    return (field>=0 && field<4) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<3) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *ValueReportDataDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -229,7 +222,6 @@ std::string ValueReportDataDescriptor::getFieldAsString(void *object, int field,
         case 0: return ulong2string(pp->nodeID);
         case 1: return double2string(pp->locX);
         case 2: return double2string(pp->locY);
-        case 3: return oppstring2string(pp->command);
         default: return "";
     }
 }
@@ -247,7 +239,6 @@ bool ValueReportDataDescriptor::setFieldAsString(void *object, int field, int i,
         case 0: pp->nodeID = string2ulong(value); return true;
         case 1: pp->locX = string2double(value); return true;
         case 2: pp->locY = string2double(value); return true;
-        case 3: pp->command = (value); return true;
         default: return false;
     }
 }

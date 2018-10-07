@@ -1,5 +1,5 @@
 Castalia| what:General (1)
-Castalia| when:2018-10-05 17:18
+Castalia| when:2018-10-05 18:05
 Castalia| label:General
 Castalia|	module:SN.node[0].ResourceManager
 Castalia|		simple output name:Consumed Energy

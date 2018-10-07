@@ -13,10 +13,12 @@
 #ifndef _VALUEREPORTING_H_
 #define _VALUEREPORTING_H_
 
-#include "ValueReportingPacket_m.h"
 #include "VirtualApplication.h"
+#include "ValueReportingPacket_m.h"
 #include <unordered_map>
 #include <algorithm>
+
+using namespace std;
 
 enum ValueReportingTimers {
 	REQUEST_SAMPLE = 1,
@@ -44,10 +46,6 @@ class ValueReporting: public VirtualApplication {
 	string evaluation;
 	string samplingAlgorithm;
 
-	// Sensing nodes
-	bool sendNow; // default value should be: false
-	bool displaySampleSensing;
-	bool done;
 	queue<double> nodeBuffer;
 
 	double bufferFree;
@@ -65,7 +63,6 @@ class ValueReporting: public VirtualApplication {
 	void sampleWith(string name);
 	void outputSinkBuffer();
 	void updateFreeBuffer();
-	void avoidLoop();
 
 	void outputSinkBufferSamples();
 	string generateFileNamePrefix();
