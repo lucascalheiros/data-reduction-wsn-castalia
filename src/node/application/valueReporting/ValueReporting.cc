@@ -22,19 +22,14 @@ void ValueReporting::startup()
 	randomBackoffIntervalFraction = genk_dblrand(0);
 	sentOnce = false;
 	setTimer(REQUEST_SAMPLE, maxSampleInterval * randomBackoffIntervalFraction);
-	
-
-	// TODO
-	sampleRate = par("sampleRate");
-	bufferSize = par("bufferSize");
-	evaluation = par("evaluation").stringValue();
-	samplingAlgorithm = par("samplingAlgorithm").stringValue();
-	string simTimeToStr(ev.getConfig()->getConfigValue("sim-time-limit"));
-	simTimeToStr.pop_back();
-	timeLimit = stod(simTimeToStr);
+	numNodes = par("numNodes");
+	simTimeLimit = par("simTime");
+	reductionType = par("reductionType").stringValue();
+	timer = 0;
+	actualNode = 0;
+	sendToSink = 30;
 	bufferFree = par("bufferSize");
-	timer=0;
-	actualNode=0;
+	reducedOutput = "";
 }
 
 void ValueReporting::timerFiredCallback(int index)
@@ -42,15 +37,19 @@ void ValueReporting::timerFiredCallback(int index)
 
 	if (isSink) {
 		if (simTime()>timer) { 
-			timer = simTime().dbl() + 1;
-			actualNode = actualNode%20+1; 
+			timer = simTime().dbl() + 0.1; // time to request a data from a node
+			actualNode = actualNode%numNodes+1; 
 			trace() << "Send me " << actualNode;
 			ValueReportingDataPacket *packet2Net =
 	    new ValueReportingDataPacket("Send me ", APPLICATION_PACKET);
 			string nodeIdStr = to_string(actualNode);
 			const char * nodeIdChar = nodeIdStr.c_str();
 			toNetworkLayer(packet2Net, nodeIdChar);
+			//toNetworkLayer(packet2Net, "-1");
 		} 
+		if (simTime()>simTimeLimit-10) {
+			output();
+		}
 	}
 
 	switch (index) {
@@ -61,9 +60,7 @@ void ValueReporting::timerFiredCallback(int index)
 		}
 	}
 
-	// TODO
-	if(isSink && simTime() > timeLimit-maxSampleInterval) 
-		outputSinkBuffer();
+
 }
 
 void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
@@ -75,39 +72,32 @@ void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
 	if (isSink){
 		string senderId = to_string(theData.nodeID);
 
-		unordered_map<string, vector< pair<double,int> > >::const_iterator check = sinkBuffer.find(senderId); //Check: ID's already in the hash
-
-		pair<double,int> sample(rcvPacket->getData(),rcvPacket->getSequenceNumber()); // Seq. number to avoid loss of (x,y) location
-
-		if(check != sinkBuffer.end()) { // Hit the data location
-			sinkBuffer.at(senderId).push_back(sample); 
-		} else { // First data entry from this node
-			vector< pair<double,int> > tempVector;
-			tempVector.push_back(sample);
-
-			sinkBuffer.insert({senderId, tempVector});
-			trace() << "New hash entry added (!)";
-
-		}
-		trace() << "Sink received from: " << senderId << " \tvalue=" << rcvPacket->getData();
+		double sensedData = rcvPacket->getData();
+		sinkBuffer[senderId].push_back(sensedData);
+		trace() << "Sink received from: " << senderId << " \tvalue=" << sensedData;
 		bufferFree--;
-		dropQueueAppend(senderId); // Add the current node to the drop queue
 
-		if (bufferFree <= 10) {
-			trace() << "Buffer is full.";
-			sampleWith(samplingAlgorithm);
+		if (bufferFree <= 5) {
+			if(reductionType == "DropRandom") {
+				dropRandom();
+			}
+			else if(reductionType == "DropFirst"){
+				dropFirst();
+			
+			}
+			else if(reductionType == "DropLast"){
+				dropLast();
+			}
+			updateFreeBuffer();
 		}
 	}
 	else {
-		if (nodeBuffer.size() > 0) {
+		int nodeBufferSize = nodeBuffer.size();
+		if (nodeBufferSize > 0) {
 
-			int bufferLength = nodeBuffer.size();
-			int toSend = 10; 
+			sendToSink = nodeBufferSize < sendToSink ? nodeBufferSize: sendToSink; 
 
-			if (bufferLength < toSend) 
-				toSend = bufferLength;
-
-			for(int i=0; i<toSend; i++) {
+			for(int i=0; i<sendToSink; i++) {
 				ValueReportData tmpData;
 				tmpData.nodeID = (unsigned short)self;
 				tmpData.locX = mobilityModule->getLocation().x;
@@ -122,7 +112,7 @@ void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
 				toNetworkLayer(packet2Net, SINK_NETWORK_ADDRESS);
 			}
 
-			trace() << toSend << "/"<< nodeBuffer.size()<< " -->  (samples sent)/(samples in buffer)" << endl;
+			trace() << sendToSink << "/"<< nodeBufferSize << " -->  (samples sent)/(samples in buffer)" << endl;
 		}
 	}
 }
@@ -133,184 +123,75 @@ void ValueReporting::handleSensorReading(SensorReadingMessage * rcvReading)
 
 	if(!isSink){
 		nodeBuffer.push(sensValue);
-		trace() << "Sensed = " << sensValue;
-
+		//trace() << "Sensed = " << sensValue;
 		sentOnce = true;
 	}
 }
 
 //TODO
-void ValueReporting::sampleWith(string name) { // Add here a call for new sampling algorithms
-
-	if(name=="DropRandom") {
-		sinkBuffer = dropRandom(sinkBuffer);
-	}
-	else if(name=="SampleCentral") { 
-
-		for(int i=0; i<dropQueue.size()-1; i++) // Empty the drop queue with pending nodes (keep the last element because its data maybe incomplete)
-			sinkBuffer = sampleCentral(sinkBuffer, sampleRate, dropQueue.at(i));
-
-		if(dropQueue.size()==1) // If there is a single element, sample it
-			sinkBuffer = sampleCentral(sinkBuffer, sampleRate, dropQueue.front());
-
-		dropQueue.clear();
-		sampleRate = par("sampleRate");
-	} 
-
-	else
-		name = "None";
-
-	trace() << "Sampling algorithm: " << name;
-	updateFreeBuffer();
-}
-
 void ValueReporting::updateFreeBuffer()
 {
-	int currentSize=0;
+	int currentSize = 0;
 	int maxSize=par("bufferSize");
 	
 	for (auto& x: sinkBuffer) {
-		for(int i=0; i<x.second.size(); i++)
-			currentSize++;
+		currentSize+=x.second.size();;
 	}
-
-	if(currentSize <= maxSize){
-		bufferFree = maxSize - currentSize; // Update the buffer-free control variable ONLY HERE
-	}
-	else
-		trace() << "ERROR! SINK BUFFER OVERHEAD.";
-
-	trace() << "Current size: " << currentSize << "/ From: " << maxSize << " units" << endl;
+	bufferFree = maxSize - currentSize;
+	trace() << "Sink buffer: " << currentSize << "/" << maxSize << endl;
 }
 
-void ValueReporting::dropQueueAppend(string ID)
-{
-	bool addToQueue=true;
-
- 	for(int i=0; i<dropQueue.size(); i++) { // Check if this ID is already in queue 
-
-		if(ID == dropQueue.at(i)) { // Avoid duplicate IDs
-			addToQueue=false;
-			break;
-		}
-	}
-
-	if(addToQueue)
-		dropQueue.push_back(ID); // Add the last sending node to drop queue
-}
-
-string ValueReporting::generateFileNamePrefix()
-{
-
-	trace() << "Obs.: REMEMBER TO CREATE SUBFOLDER /RemainingIndexes IN SIMULATION FOLDER (!)";
-	string fileNamePrefix = "RemainingIndexes/";
-
-	if (evaluation == "varyBuffer")
-		fileNamePrefix.append(evaluation+"-"+to_string(bufferSize)+"-");
-
-	if (evaluation == "varySampleRate")
-		fileNamePrefix.append(evaluation+"-"+to_string(bufferSize)+"-"+to_string(sampleRate)+"-");
-	
-	fileNamePrefix.append(samplingAlgorithm+"-");
-
-	return fileNamePrefix;
-}
-
-/************************************** EXPORT *************************************************************/
-
-void ValueReporting::outputSinkBuffer() // OBS.: The first element from each line is the respective node ID
-{
-	// Exporting remaining indexes to match with initial hash
+void ValueReporting::output() {
 	ofstream outputSinkBuffer;
+	ofstream outputReduced;
 	string strSinkBuffer = "";
-	string fileName = generateFileNamePrefix()+"remainingIndexes.csv";
-	
-	outputSinkBuffer.open (fileName);
+	outputSinkBuffer.open (reductionType+"_Buffer.csv");
 
 	for (auto& x: sinkBuffer) {
-		strSinkBuffer.append(x.first+","); // First element of line,  x.first, is a string containing the node ID:
+		strSinkBuffer.append(x.first+",");
 		for(int i=0; i<x.second.size(); i++)
-			strSinkBuffer.append(to_string(get<1>(x.second[i]))+","); // x.second[i] is a pair<double,int> | Get the indexes with get<1>
-
-		strSinkBuffer.append("\n"); 
+			strSinkBuffer.append(to_string(x.second[i])+",");
+		strSinkBuffer.append("\n");
 	}
-
 	outputSinkBuffer << strSinkBuffer;
 	outputSinkBuffer.close();
-
-	trace() << "Last state of sink buffer was exported to " << fileName;
+	outputReduced.open (reductionType);
+	outputReduced << reducedOutput;
+	outputReduced.close();
 }
 
-void ValueReporting::outputSinkBufferSamples() // OBS.: The first element from each line is the respective node ID
-{
-	ofstream outputSinkBuffer;
-
-	// Exporting samples
-	string strSinkBuffer = "";
-	string fileName = generateFileNamePrefix()+"remainingSamples.csv";
-	outputSinkBuffer.open (fileName);
-
-	for (auto& x: sinkBuffer) {
-		strSinkBuffer.append(x.first+","); // First element of line is the node
-		for(int i=0; i<x.second.size(); i++)
-			strSinkBuffer.append(to_string(get<0>(x.second[i]))+","); // x.second[i] is a pair<double,int> | Get the samples with get<0>
-
-		strSinkBuffer.append("\n"); 
-	}
-
-	outputSinkBuffer << strSinkBuffer;
-	outputSinkBuffer.close();
-
-	trace() << "Last state of sink buffer was exported to " << fileName;
-
-}
-
-unordered_map<string, vector< pair<double,int> >> ValueReporting::dropRandom(unordered_map<string, vector< pair<double,int> >> sinkBuffer) {
-
-	trace() << "Running Drop Random." << endl;
-	unordered_map<string, vector< pair<double,int> >> reducedBuffer = sinkBuffer;
+void ValueReporting::dropRandom() {
 	vector <string> keys;
 
-	for (auto& x: reducedBuffer)
-		keys.push_back(x.first); // Check the keys inside the hash
+	for (auto& x: sinkBuffer)
+		keys.push_back(x.first);
 
-	int dropPointer = rand() % keys.size(); // Point to a random key (node)
-
-	reducedBuffer.erase(keys[dropPointer]); // Drop it
-	trace() << keys[dropPointer] << " Removed." << endl;
-
-	return reducedBuffer;
+	int dropPointer = rand() % keys.size();
+	sinkBuffer.erase(keys[dropPointer]);
+	reducedOutput += "DropRandom Reduce:" + keys[dropPointer] + "\n";
+	trace() <<"DropRandom Reduce: "<< keys[dropPointer] << "\n";
 }
 
-unordered_map<string, vector< pair<double,int> >> ValueReporting::sampleCentral(unordered_map<string, vector< pair<double,int> >> sinkBuffer, int sampleRate, string nodeID)
-{
-	trace() << "Running Sampling Central." << endl;
-	unordered_map<string, vector< pair<double,int> >> reducedBuffer = sinkBuffer;
-	vector < pair<double,int> > newData;
+void ValueReporting::dropLast()  {
+	vector <string> keys;
 
-	int dataLength = reducedBuffer.at(nodeID).size();
-
-	sort(reducedBuffer.at(nodeID).begin(), reducedBuffer.at(nodeID).end(), compareSample);
-	
-	int newSize = dataLength*sampleRate/100; // Length of reduced sample vector
-	if(!newSize)
-		newSize++;
-
-	int sampleIndex = (dataLength - newSize)/2; // Pointer to the index which will start the sampling
-
-	for(int i=sampleIndex; i<(sampleIndex+newSize); i++) // Sampling central data
-		newData.push_back(reducedBuffer.at(nodeID)[i]);
-
-	reducedBuffer.at(nodeID) = newData;
-	newData.clear();
-
-	return reducedBuffer;
+	for (auto& x: sinkBuffer)
+		keys.push_back(x.first); 
+		
+	int dropPointer = keys.size() - 1;
+	sinkBuffer.erase(keys[dropPointer]);
+	reducedOutput += "DropLast Reduce:" + keys[dropPointer] + "\n";
+	trace() <<"DropLast Reduce: "<< keys[dropPointer] << "\n";
 }
 
-bool compareSample(pair<double,int> s1, pair<double,int> s2) {
+void ValueReporting::dropFirst()   {
+	vector <string> keys;
 
-	double i = get<0>(s1);
-	double j = get<0>(s2);
+	for (auto& x: sinkBuffer)
+		keys.push_back(x.first);
 
-	return (i<j);
+	int dropPointer = 0;
+	sinkBuffer.erase(keys[dropPointer]);
+	reducedOutput += "DropFirst Reduce:" + keys[dropPointer] + "\n";
+	trace() <<"DropFirst Reduce: "<< keys[dropPointer] << "\n";
 }

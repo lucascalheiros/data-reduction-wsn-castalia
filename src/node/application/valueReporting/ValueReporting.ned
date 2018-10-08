@@ -25,12 +25,11 @@ simple ValueReporting like node.application.iApplication {
 	int maxSampleInterval = default (60000);// in msec
 	int minSampleInterval = default (1000);	// in msec
 	bool isSink = default (false);
-
-	string samplingAlgorithm = default ("");
-	string evaluation = default("");
+	int numNodes = default (20);
+	int simTime = default (100); 
 	int bufferSize = default (1000);
-	int contamination = default(0);
-	int sampleRate = default (25); //  between [1,100] %
+	string reductionType = default ("DropRandom");
+
  gates:
  	output toCommunicationModule;
 	output toSensorDeviceManager;

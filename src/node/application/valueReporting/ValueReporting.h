@@ -15,7 +15,7 @@
 
 #include "VirtualApplication.h"
 #include "ValueReportingPacket_m.h"
-#include <unordered_map>
+#include <map>
 #include <algorithm>
 
 using namespace std;
@@ -38,41 +38,27 @@ class ValueReporting: public VirtualApplication {
 	bool sentOnce;
 	double timer;
 	int actualNode;
-
-	// Output info
-	int timeLimit;
-	int sampleRate;
+	int numNodes;
+	int simTimeLimit;
 	int bufferSize;
-	string evaluation;
-	string samplingAlgorithm;
-
+	string reductionType;
+	int sendToSink;
+	map<string, vector<double>> sinkBuffer; 
 	queue<double> nodeBuffer;
-
 	double bufferFree;
-	vector<string> dropQueue; //
-	unordered_map<string, vector< pair<double,int> >> sinkBuffer; // pair<double, int> where -> #first: data sample | second: sequence number
-	vector<vector<pair<double,int>>> sinkBuffer1;
+	string reducedOutput;
 
  protected:
 	void startup();
-
 	void fromNetworkLayer(ApplicationPacket *, const char *, double, double);
 	void handleSensorReading(SensorReadingMessage *);
-	void dropQueueAppend(string ID);
 	void timerFiredCallback(int);
-	void sampleWith(string name);
-	void outputSinkBuffer();
+	void output();
 	void updateFreeBuffer();
-
-	void outputSinkBufferSamples();
-	string generateFileNamePrefix();
-
-	ValueReportingDataPacket* createDataPkt(double sensValue, int seqNumber);
-	ValueReportingDataPacket* createControlPkt(string command);
-	unordered_map<string, vector< pair<double,int> >> dropRandom(unordered_map<string, vector< pair<double,int> >> sinkBuffer);
-	unordered_map<string, vector< pair<double,int> >> sampleCentral(unordered_map<string, vector< pair<double,int> >> sinkBuffer, int sampleRate, string nodeID);
+	void dropRandom(); 
+	void dropFirst();
+	void dropLast();
 
 };
-	bool compareSample(pair<double,int> s1, pair<double,int> s2);
-
+////////////////////////////////
 #endif				// _VALUEREPORTING_APPLICATIONMODULE_H_
