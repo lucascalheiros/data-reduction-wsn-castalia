@@ -45,7 +45,8 @@ class ValueReporting: public VirtualApplication {
 	int sendToSink;
 	map<string, vector<double>> sinkBuffer; 
 	queue<double> nodeBuffer;
-	double bufferFree;
+	int bufferFree;
+	int maxSize;
 	string reducedOutput;
 
  protected:
@@ -54,11 +55,9 @@ class ValueReporting: public VirtualApplication {
 	void handleSensorReading(SensorReadingMessage *);
 	void timerFiredCallback(int);
 	void output();
-	void updateFreeBuffer();
 	void dropRandom(); 
 	void dropFirst();
 	void dropLast();
 
 };
-////////////////////////////////
 #endif				// _VALUEREPORTING_APPLICATIONMODULE_H_

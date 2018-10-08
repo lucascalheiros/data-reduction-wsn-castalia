@@ -29,6 +29,7 @@ void ValueReporting::startup()
 	actualNode = 0;
 	sendToSink = 30;
 	bufferFree = par("bufferSize");
+	maxSize = par("bufferSize");
 	reducedOutput = "";
 }
 
@@ -88,7 +89,13 @@ void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
 			else if(reductionType == "DropLast"){
 				dropLast();
 			}
-			updateFreeBuffer();
+			int currentSize = 0;
+			
+			for (auto& x: sinkBuffer) {
+				currentSize+=x.second.size();;
+			}
+			bufferFree = maxSize - currentSize;
+			trace() << "Sink buffer: " << currentSize << "/" << maxSize << endl;
 		}
 	}
 	else {
@@ -126,19 +133,6 @@ void ValueReporting::handleSensorReading(SensorReadingMessage * rcvReading)
 		//trace() << "Sensed = " << sensValue;
 		sentOnce = true;
 	}
-}
-
-//TODO
-void ValueReporting::updateFreeBuffer()
-{
-	int currentSize = 0;
-	int maxSize=par("bufferSize");
-	
-	for (auto& x: sinkBuffer) {
-		currentSize+=x.second.size();;
-	}
-	bufferFree = maxSize - currentSize;
-	trace() << "Sink buffer: " << currentSize << "/" << maxSize << endl;
 }
 
 void ValueReporting::output() {
