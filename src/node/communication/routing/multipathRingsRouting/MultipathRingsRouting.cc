@@ -77,6 +77,7 @@ void MultipathRingsRouting::timerFiredCallback(int index)
 			isConnected = true;
 			sendControlMessage(MPRINGS_CONNECTED_TO_TREE);
 			trace() << "Connected to " << currentSinkID << " at level " << currentLevel;
+			currentLevel = 1; // This line will set a perfect communication
 			if (!TXBuffer.empty())
 				processBufferedPacket();
 		} else {

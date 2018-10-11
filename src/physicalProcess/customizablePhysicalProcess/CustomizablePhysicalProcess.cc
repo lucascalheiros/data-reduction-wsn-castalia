@@ -22,6 +22,7 @@ void CustomizablePhysicalProcess::initialize()
 		initHelpStructures();	// Allocate and Initialize sourcesEvolution
 		time = -1;
 	}
+	srand(10);
 }
 
 void CustomizablePhysicalProcess::handleMessage(cMessage * msg)
@@ -36,7 +37,7 @@ void CustomizablePhysicalProcess::handleMessage(cMessage * msg)
 
 	switch (inputType) {
 		case DIRECT_NODE_VALUES:{
-			returnValue = valuesTable[nodeIndex];
+			returnValue = valuesTable[nodeIndex] + rand()%6*(rand()%3-1);
 			break;
 		}
 
@@ -58,6 +59,7 @@ void CustomizablePhysicalProcess::handleMessage(cMessage * msg)
 
 	// Send reply back to the node who made the request
 	receivedMsg->setValue(returnValue);
+	trace() << returnValue << "nodeId "<< nodeIndex << endl;
 	send(receivedMsg, "toNode", nodeIndex);
 }
 

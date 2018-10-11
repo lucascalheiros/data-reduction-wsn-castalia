@@ -157,35 +157,44 @@ void ValueReporting::output() {
 void ValueReporting::dropRandom() {
 	vector <string> keys;
 
-	for (auto& x: sinkBuffer)
-		keys.push_back(x.first);
-
+	for (auto& x: sinkBuffer) {
+		if( x.second.size()>0)
+			keys.push_back(x.first);
+	}
 	int dropPointer = rand() % keys.size();
-	sinkBuffer.erase(keys[dropPointer]);
-	reducedOutput += "DropRandom Reduce:" + keys[dropPointer] + "\n";
-	trace() <<"DropRandom Reduce: "<< keys[dropPointer] << "\n";
+	int dropPacket = rand() % sinkBuffer[keys[dropPointer]].size();
+	double dropped = sinkBuffer[keys[dropPointer]].at(dropPacket);
+	sinkBuffer[keys[dropPointer]].erase(sinkBuffer[keys[dropPointer]].begin()+dropPacket);
+	reducedOutput += "Drop Random. From node: " + keys[dropPointer] + " Packet Value: " + to_string(dropped) + "\n";
+	trace() << "Drop Random. From node: " << keys[dropPointer] << " Packet Value: "<<dropped<<"\n";
 }
 
 void ValueReporting::dropLast()  {
 	vector <string> keys;
 
-	for (auto& x: sinkBuffer)
-		keys.push_back(x.first); 
-		
-	int dropPointer = keys.size() - 1;
-	sinkBuffer.erase(keys[dropPointer]);
-	reducedOutput += "DropLast Reduce:" + keys[dropPointer] + "\n";
-	trace() <<"DropLast Reduce: "<< keys[dropPointer] << "\n";
+	for (auto& x: sinkBuffer) {
+		if( x.second.size()>0)
+			keys.push_back(x.first);
+	}
+	int dropPointer = rand() % keys.size();
+	int dropPacket = sinkBuffer[keys[dropPointer]].size() - 1;
+	double dropped = sinkBuffer[keys[dropPointer]].at(dropPacket);
+	sinkBuffer[keys[dropPointer]].erase(sinkBuffer[keys[dropPointer]].begin()+dropPacket);
+	reducedOutput += "Drop Last. From node: " + keys[dropPointer] + " Packet Value: " + to_string(dropped) + "\n";
+	trace() << "Drop Last. From node: " << keys[dropPointer] << " Packet Value: "<<dropped<<"\n";
 }
 
 void ValueReporting::dropFirst()   {
 	vector <string> keys;
 
-	for (auto& x: sinkBuffer)
-		keys.push_back(x.first);
-
-	int dropPointer = 0;
-	sinkBuffer.erase(keys[dropPointer]);
-	reducedOutput += "DropFirst Reduce:" + keys[dropPointer] + "\n";
-	trace() <<"DropFirst Reduce: "<< keys[dropPointer] << "\n";
+	for (auto& x: sinkBuffer) {
+		if( x.second.size()>0)
+			keys.push_back(x.first);
+	}
+	int dropPointer = rand() % keys.size();
+	int dropPacket = 0;
+	double dropped = sinkBuffer[keys[dropPointer]].at(dropPacket);
+	sinkBuffer[keys[dropPointer]].erase(sinkBuffer[keys[dropPointer]].begin()+dropPacket);
+	reducedOutput += "Drop First. From node: " + keys[dropPointer] + " Packet Value: " + to_string(dropped) + "\n";
+	trace() << "Drop First. From node: " << keys[dropPointer] << " Packet Value: "<<dropped<<"\n";
 }
