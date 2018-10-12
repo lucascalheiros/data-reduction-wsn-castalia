@@ -22,7 +22,7 @@ void CustomizablePhysicalProcess::initialize()
 		initHelpStructures();	// Allocate and Initialize sourcesEvolution
 		time = -1;
 	}
-	srand(10);
+	simple_rand.seed(10);
 }
 
 void CustomizablePhysicalProcess::handleMessage(cMessage * msg)
@@ -37,7 +37,7 @@ void CustomizablePhysicalProcess::handleMessage(cMessage * msg)
 
 	switch (inputType) {
 		case DIRECT_NODE_VALUES:{
-			returnValue = valuesTable[nodeIndex] + rand()%6*(rand()%3-1);
+			returnValue = valuesTable[nodeIndex] + ((int)simple_rand()%6)*((int)simple_rand()%3-1) + (double)((int)simple_rand()%10)/10;
 			break;
 		}
 

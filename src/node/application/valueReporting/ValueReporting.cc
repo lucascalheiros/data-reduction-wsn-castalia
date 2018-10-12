@@ -31,6 +31,7 @@ void ValueReporting::startup()
 	bufferFree = par("bufferSize");
 	maxSize = par("bufferSize");
 	reducedOutput = "";
+	interval = par("histogramInterval");
 }
 
 void ValueReporting::timerFiredCallback(int index)
@@ -74,6 +75,7 @@ void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
 		string senderId = to_string(theData.nodeID);
 
 		double sensedData = rcvPacket->getData();
+		sensedDataOutput[senderId].push_back(sensedData);
 		sinkBuffer[senderId].push_back(sensedData);
 		trace() << "Sink received from: " << senderId << " \tvalue=" << sensedData;
 		bufferFree--;
@@ -88,6 +90,9 @@ void ValueReporting::fromNetworkLayer(ApplicationPacket * genericPacket,
 			}
 			else if(reductionType == "DropLast"){
 				dropLast();
+			}
+			else if(reductionType == "DropHistogram"){
+				dropHistogram();
 			}
 			int currentSize = 0;
 			
@@ -136,22 +141,33 @@ void ValueReporting::handleSensorReading(SensorReadingMessage * rcvReading)
 }
 
 void ValueReporting::output() {
-	ofstream outputSinkBuffer;
-	ofstream outputReduced;
+	ofstream output;
 	string strSinkBuffer = "";
-	outputSinkBuffer.open (reductionType+"_Buffer.csv");
-
+	string strDataOutput = "";
+	
+	output.open(reductionType+"_Buffer.csv");
 	for (auto& x: sinkBuffer) {
 		strSinkBuffer.append(x.first+",");
 		for(int i=0; i<x.second.size(); i++)
 			strSinkBuffer.append(to_string(x.second[i])+",");
 		strSinkBuffer.append("\n");
 	}
-	outputSinkBuffer << strSinkBuffer;
-	outputSinkBuffer.close();
-	outputReduced.open (reductionType);
-	outputReduced << reducedOutput;
-	outputReduced.close();
+	output << strSinkBuffer;
+	output.close();
+
+	output.open (reductionType);
+	output << reducedOutput;
+	output.close();
+	
+	output.open ("dataSensed.csv");
+	for (auto& x: sensedDataOutput) {
+		strDataOutput.append(x.first+",");
+		for(int i=0; i<x.second.size(); i++)
+			strDataOutput.append(to_string(x.second[i])+",");
+		strDataOutput.append("\n");
+	}
+	output << strDataOutput;
+	output.close();
 }
 
 void ValueReporting::dropRandom() {
@@ -161,40 +177,78 @@ void ValueReporting::dropRandom() {
 		if( x.second.size()>0)
 			keys.push_back(x.first);
 	}
-	int dropPointer = rand() % keys.size();
-	int dropPacket = rand() % sinkBuffer[keys[dropPointer]].size();
-	double dropped = sinkBuffer[keys[dropPointer]].at(dropPacket);
-	sinkBuffer[keys[dropPointer]].erase(sinkBuffer[keys[dropPointer]].begin()+dropPacket);
-	reducedOutput += "Drop Random. From node: " + keys[dropPointer] + " Packet Value: " + to_string(dropped) + "\n";
-	trace() << "Drop Random. From node: " << keys[dropPointer] << " Packet Value: "<<dropped<<"\n";
+	int dropIndex = rand() % keys.size();
+	int dropPacket = rand() % sinkBuffer[keys[dropIndex]].size();
+	double dropped = sinkBuffer[keys[dropIndex]].at(dropPacket);
+	sinkBuffer[keys[dropIndex]].erase(sinkBuffer[keys[dropIndex]].begin()+dropPacket);
+	reducedOutput += "Drop Random. From node: " + keys[dropIndex] + " Packet Value: " + to_string(dropped) + "\n";
+	trace() << "Drop Random. From node: " << keys[dropIndex] << " Packet Value: "<<dropped<<"\n";
 }
 
-void ValueReporting::dropLast()  {
+void ValueReporting::dropLast() {
 	vector <string> keys;
 
 	for (auto& x: sinkBuffer) {
 		if( x.second.size()>0)
 			keys.push_back(x.first);
 	}
-	int dropPointer = rand() % keys.size();
-	int dropPacket = sinkBuffer[keys[dropPointer]].size() - 1;
-	double dropped = sinkBuffer[keys[dropPointer]].at(dropPacket);
-	sinkBuffer[keys[dropPointer]].erase(sinkBuffer[keys[dropPointer]].begin()+dropPacket);
-	reducedOutput += "Drop Last. From node: " + keys[dropPointer] + " Packet Value: " + to_string(dropped) + "\n";
-	trace() << "Drop Last. From node: " << keys[dropPointer] << " Packet Value: "<<dropped<<"\n";
+	int dropIndex = rand() % keys.size();
+	int dropPacket = sinkBuffer[keys[dropIndex]].size() - 1;
+	double dropped = sinkBuffer[keys[dropIndex]].at(dropPacket);
+	sinkBuffer[keys[dropIndex]].erase(sinkBuffer[keys[dropIndex]].begin()+dropPacket);
+	reducedOutput += "Drop Last. From node: " + keys[dropIndex] + " Packet Value: " + to_string(dropped) + "\n";
+	trace() << "Drop Last. From node: " << keys[dropIndex] << " Packet Value: "<<dropped<<"\n";
 }
 
-void ValueReporting::dropFirst()   {
+void ValueReporting::dropFirst() {
 	vector <string> keys;
 
 	for (auto& x: sinkBuffer) {
 		if( x.second.size()>0)
 			keys.push_back(x.first);
 	}
-	int dropPointer = rand() % keys.size();
+	int dropIndex = rand() % keys.size();
 	int dropPacket = 0;
-	double dropped = sinkBuffer[keys[dropPointer]].at(dropPacket);
-	sinkBuffer[keys[dropPointer]].erase(sinkBuffer[keys[dropPointer]].begin()+dropPacket);
-	reducedOutput += "Drop First. From node: " + keys[dropPointer] + " Packet Value: " + to_string(dropped) + "\n";
-	trace() << "Drop First. From node: " << keys[dropPointer] << " Packet Value: "<<dropped<<"\n";
+	double dropped = sinkBuffer[keys[dropIndex]].at(dropPacket);
+	sinkBuffer[keys[dropIndex]].erase(sinkBuffer[keys[dropIndex]].begin()+dropPacket);
+	reducedOutput += "Drop First. From node: " + keys[dropIndex] + " Packet Value: " + to_string(dropped) + "\n";
+	trace() << "Drop First. From node: " << keys[dropIndex] << " Packet Value: "<<dropped<<"\n";
 }
+
+void ValueReporting::dropHistogram() {
+	double max = 0;
+	vector<double> reduced;
+	string key;
+	int size;
+	int base;
+	int actualPos = 0;
+	for (auto& x: sinkBuffer) {
+		if( x.second.size()>max) {
+			max = x.second.size();
+			key = x.first;
+		}
+	}
+	sort(sinkBuffer[key].begin(), sinkBuffer[key].end());
+	size = sinkBuffer[key].size();
+	base = sinkBuffer[key].front()-(int)sinkBuffer[key].front()%interval;
+	while(size > 0) {
+		vector<double> tmp;
+		base += interval;
+		for(int i = actualPos; i < sinkBuffer[key].size(); i++) {
+			if(sinkBuffer[key].at(i) < base) {
+				tmp.push_back(sinkBuffer[key].at(i));
+				size--;
+				actualPos++;
+			}
+			else
+				break;
+		}
+		int starPos = tmp.size()/4;
+		int dropSize = tmp.size()/2;
+		reduced.insert(reduced.end(),tmp.begin()+starPos,tmp.begin()+dropSize);
+	}
+	sinkBuffer[key] = reduced;
+}
+
+//*/
+

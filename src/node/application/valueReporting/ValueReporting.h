@@ -48,6 +48,8 @@ class ValueReporting: public VirtualApplication {
 	int bufferFree;
 	int maxSize;
 	string reducedOutput;
+	map<string, vector<double>> sensedDataOutput; 
+	int interval;
 
  protected:
 	void startup();
@@ -58,6 +60,7 @@ class ValueReporting: public VirtualApplication {
 	void dropRandom(); 
 	void dropFirst();
 	void dropLast();
+	void dropHistogram();
 
 };
 #endif				// _VALUEREPORTING_APPLICATIONMODULE_H_

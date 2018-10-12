@@ -17,6 +17,7 @@
 
 #include "CastaliaModule.h"
 #include "PhysicalProcessMessage_m.h"
+#include <random>
 
 using namespace std;
 
@@ -43,6 +44,7 @@ class CustomizablePhysicalProcess: public CastaliaModule {
 	double sigma;
 	int max_num_snapshots;
 	int inputType;
+	minstd_rand simple_rand;
 
 	/*--- Custom class member variables ---*/
 	int numNodes;
