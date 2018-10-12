@@ -28,6 +28,7 @@ simple ValueReporting like node.application.iApplication {
 	int numNodes = default (20);
 	int simTime = default (100); 
 	int bufferSize = default (1000);
+	int histogramInterval = default(3);
 	string reductionType = default ("DropRandom");
 
  gates:
