@@ -145,7 +145,7 @@ void ValueReporting::output() {
 	string strSinkBuffer = "";
 	string strDataOutput = "";
 	
-	output.open(reductionType+"_Buffer.csv");
+	output.open(reductionType+"-"+to_string(maxSize)+"bufferSize-"+to_string(numNodes)+"nodes.csv");
 	for (auto& x: sinkBuffer) {
 		strSinkBuffer.append(x.first+",");
 		for(int i=0; i<x.second.size(); i++)
@@ -159,7 +159,7 @@ void ValueReporting::output() {
 	output << reducedOutput;
 	output.close();
 	
-	output.open ("dataSensed.csv");
+	output.open ("dataSensed-"+to_string(numNodes)+"nodes.csv");
 	for (auto& x: sensedDataOutput) {
 		strDataOutput.append(x.first+",");
 		for(int i=0; i<x.second.size(); i++)
